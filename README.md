@@ -16,7 +16,6 @@ python3 app.py
 # Output:
 # v0.0.1
 
-## 🐳 Build & Run with Docker
 Build the image:
 docker build -t phase02/version-printer:0.0.1 .
 
@@ -27,6 +26,4 @@ docker run --rm phase02/version-printer:0.0.1
 
 Check exit code (should be 0):
 docker run --rm phase02/version-printer:0.0.1 >/dev/null && echo "OK"
-
-
 
