@@ -75,4 +75,3 @@ jobs:
           grep -q '"version"' /tmp/version.json
           docker logs phase3_api | tail -n +200 || true
           docker stop phase3_api
-
