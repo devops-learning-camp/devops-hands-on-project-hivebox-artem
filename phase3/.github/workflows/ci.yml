@@ -23,9 +23,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
+          # Используем более общий шаблон, чтобы не падать, если файла нет
           cache-dependency-path: |
-            phase-03/requirements.txt
-            phase-03/requirements-dev.txt
+            **/requirements.txt
+            **/requirements-dev.txt
+            **/pyproject.toml
 
       - name: Install dependencies (runtime + dev)
         run: |
