@@ -1,0 +1,77 @@
+name: CI (Phase-03)
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: phase-03
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: |
+            phase-03/requirements.txt
+            phase-03/requirements-dev.txt
+
+      - name: Install dependencies (runtime + dev)
+        run: |
+          python -m pip install --upgrade pip
+          if [[ -f requirements.txt ]]; then pip install -r requirements.txt; fi
+          if [[ -f requirements-dev.txt ]]; then pip install -r requirements-dev.txt; else pip install pytest ruff; fi
+
+      - name: Lint Python (ruff)
+        run: |
+          ruff --version
+          # Lint only phase-03 Python sources
+          ruff check app || (echo "Ruff found issues"; exit 1)
+
+      - name: Lint Dockerfile (hadolint)
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: phase-03/Dockerfile
+        # If you want warnings to not fail build, add:
+        # continue-on-error: true
+
+      - name: Run unit tests (pytest)
+        env:
+          PYTHONPATH: .
+        run: |
+          pytest -q
+
+      - name: Build Docker image
+        run: |
+          docker build -t phase3/api:${{ github.sha }} .
+
+      - name: Smoke test /version
+        env:
+          APP_VERSION: "v0.0.1"
+        run: |
+          set -euo pipefail
+          docker run -d --rm -p 8000:8000 --name phase3_api -e APP_VERSION="$APP_VERSION" phase3/api:${{ github.sha }}
+          # wait for app
+          for i in {1..20}; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8000/version || true)
+            if [[ "$status" == "200" ]]; then
+              echo "App is up"
+              break
+            fi
+            sleep 1
+          done
+          curl -sSf http://127.0.0.1:8000/version | tee /tmp/version.json
+          grep -q '"version"' /tmp/version.json
+          docker logs phase3_api | tail -n +200 || true
+          docker stop phase3_api
